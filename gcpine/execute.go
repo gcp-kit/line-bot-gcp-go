@@ -16,7 +16,7 @@ func (g *GCPine) Execute(ctx context.Context, event *linebot.Event) (err error) 
 		}
 	}()
 
-	var eventType TracerName
+	var eventType EventType
 	switch event.Type {
 	case linebot.EventTypeMessage:
 		switch message := event.Message.(type) {
