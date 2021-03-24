@@ -20,7 +20,12 @@ go get github.com/gcp-kit/line-bot-gcp-go
 ```
 
 ## Usage
-[gcp-kit/line-bot-gcp-go-example](https://github.com/gcp-kit/line-bot-gcp-go-example)
+Google App Engine Example  
+[gcp-kit/gcpine-gae-example](https://github.com/gcp-kit/gcpine-gae-example)
+
+TODO
+- GoogleCloudFunctions Example
+- Local Example
 
 ## License
 [MIT license](LICENSE).

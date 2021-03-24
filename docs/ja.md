@@ -19,7 +19,12 @@ go get github.com/gcp-kit/line-bot-gcp-go
 ```
 
 ## Usage
-[gcp-kit/line-bot-gcp-go-example](https://github.com/gcp-kit/line-bot-gcp-go-example)
+Google App Engine用のサンプル  
+[gcp-kit/gcpine-gae-example](https://github.com/gcp-kit/gcpine-gae-example)
+
+TODO
+- Google Cloud Functions用のサンプル
+- Local用のサンプル
 
 ## License
 [MIT license](../LICENSE).
