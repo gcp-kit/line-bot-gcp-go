@@ -45,6 +45,11 @@ func (g *GCPine) Execute(ctx context.Context, event *linebot.Event) (err error) 
 		return fmt.Errorf("error in event handler method: %w", err)
 	}
 
+	// NOTE: will not reply
+	if stack == nil {
+		return nil
+	}
+
 	if len(stack) == 0 {
 		return ErrEmptyMessages
 	}
