@@ -8,58 +8,74 @@ import (
 	"sync"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
+	"github.com/gcp-kit/gcpen"
 	"github.com/line/line-bot-sdk-go/linebot"
 	"google.golang.org/genproto/googleapis/cloud/tasks/v2"
 )
 
 // AppEngineProps - props for App Engine.
-type AppEngineProps struct {
-	QueuePath   string
-	RelativeURI string
-	Service     string
+type AppEngineProps interface {
+	SetTasksClient(client *cloudtasks.Client)
+	SetSecret(secret string)
+	SetService(service string)
+	ReceiveWebHook(w http.ResponseWriter, r *http.Request)
+	ParentEvent(ctx context.Context, body []byte) error
+	ChildEvent(ctx context.Context, pine *GCPine, body []byte) error
+}
 
-	client *cloudtasks.Client
-	secret string
+type appEngineProps struct {
+	queuePath   string
+	relativeURI string
+	service     string
+	client      *cloudtasks.Client
+	secret      string
 }
 
 // NewAppEngineProps - constructor
-func NewAppEngineProps(client *cloudtasks.Client, secret string) *AppEngineProps {
-	return &AppEngineProps{
-		client: client,
-		secret: secret,
+func NewAppEngineProps(queuePath, relativeURI string) AppEngineProps {
+	gcpen.Reload()
+	return &appEngineProps{
+		queuePath:   queuePath,
+		relativeURI: relativeURI,
+		service:     gcpen.ServiceName,
 	}
 }
 
-// SetTQClient - setter
-func (ae *AppEngineProps) SetTQClient(client *cloudtasks.Client) {
+// SetTasksClient - setter
+func (ae *appEngineProps) SetTasksClient(client *cloudtasks.Client) {
 	ae.client = client
 }
 
 // SetSecret - setter
-func (ae *AppEngineProps) SetSecret(secret string) {
+func (ae *appEngineProps) SetSecret(secret string) {
 	ae.secret = secret
 }
 
-func (ae *AppEngineProps) createTask(ctx context.Context, data []byte) error {
+// SetService - setter
+func (ae *appEngineProps) SetService(service string) {
+	ae.secret = service
+}
+
+func (ae *appEngineProps) createTask(ctx context.Context, data []byte) error {
 	req := &tasks.CreateTaskRequest{
-		Parent: ae.QueuePath,
+		Parent: ae.queuePath,
 		Task: &tasks.Task{
 			MessageType: &tasks.Task_AppEngineHttpRequest{
 				AppEngineHttpRequest: &tasks.AppEngineHttpRequest{
 					Body:        data,
 					HttpMethod:  tasks.HttpMethod_POST,
-					RelativeUri: ae.RelativeURI,
+					RelativeUri: ae.relativeURI,
 				},
 			},
 		},
 	}
 
-	if len(ae.Service) > 0 {
+	if len(ae.service) > 0 {
 		gaeReq := req.Task.GetAppEngineHttpRequest()
 		if gaeReq.AppEngineRouting == nil {
 			gaeReq.AppEngineRouting = new(tasks.AppEngineRouting)
 		}
-		gaeReq.AppEngineRouting.Service = ae.Service
+		gaeReq.AppEngineRouting.Service = ae.service
 	}
 
 	if _, err := ae.client.CreateTask(ctx, req); err != nil {
@@ -70,7 +86,7 @@ func (ae *AppEngineProps) createTask(ctx context.Context, data []byte) error {
 }
 
 // ReceiveWebHook - receive webhooks of LINE on App Engine.
-func (ae *AppEngineProps) ReceiveWebHook(w http.ResponseWriter, r *http.Request) {
+func (ae *appEngineProps) ReceiveWebHook(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
@@ -94,7 +110,7 @@ func (ae *AppEngineProps) ReceiveWebHook(w http.ResponseWriter, r *http.Request)
 }
 
 // ParentEvent - receive parent events on Cloud Tasks.
-func (ae *AppEngineProps) ParentEvent(ctx context.Context, body []byte) error {
+func (ae *appEngineProps) ParentEvent(ctx context.Context, body []byte) error {
 	events, err := ParseEvents(body)
 	if err != nil {
 		return fmt.Errorf("could not parse the event: %w", err)
@@ -123,7 +139,7 @@ func (ae *AppEngineProps) ParentEvent(ctx context.Context, body []byte) error {
 }
 
 // ChildEvent - receive child event on Cloud Tasks.
-func (ae *AppEngineProps) ChildEvent(ctx context.Context, pine *GCPine, body []byte) error {
+func (ae *appEngineProps) ChildEvent(ctx context.Context, pine *GCPine, body []byte) error {
 	event := new(linebot.Event)
 	if err := event.UnmarshalJSON(body); err != nil {
 		return err
