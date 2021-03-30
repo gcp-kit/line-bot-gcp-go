@@ -5,6 +5,7 @@ go 1.13
 require (
 	cloud.google.com/go v0.79.0
 	cloud.google.com/go/pubsub v1.10.1
+	github.com/gcp-kit/gcpen v0.0.0-20210323175032-f6e32d38024c // indirect
 	github.com/golang/protobuf v1.5.1 // indirect
 	github.com/line/line-bot-sdk-go v7.8.0+incompatible
 	golang.org/x/mod v0.4.2 // indirect
