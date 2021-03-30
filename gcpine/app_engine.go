@@ -95,6 +95,14 @@ func (ae *appEngineProps) createTask(ctx context.Context, data []byte) error {
 func (ae *appEngineProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter) error {
 	defer r.Body.Close()
 
+	// guard
+	if ae.secret == "" {
+		return fmt.Errorf("secret is required")
+	}
+	if ae.client == nil {
+		return fmt.Errorf("cloud tasks client is required")
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
@@ -118,6 +126,11 @@ func (ae *appEngineProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter)
 
 // ParentEvent - receive parent events on Cloud Tasks.
 func (ae *appEngineProps) ParentEvent(ctx context.Context, body []byte) error {
+	// guard
+	if ae.client == nil {
+		return fmt.Errorf("cloud tasks client is required")
+	}
+
 	events, err := ParseEvents(body)
 	if err != nil {
 		return fmt.Errorf("could not parse the event: %w", err)
@@ -147,6 +160,11 @@ func (ae *appEngineProps) ParentEvent(ctx context.Context, body []byte) error {
 
 // ChildEvent - receive child event on Cloud Tasks.
 func (ae *appEngineProps) ChildEvent(ctx context.Context, body []byte) error {
+	// guard
+	if ae.pine == nil {
+		return fmt.Errorf("GCPine is required")
+	}
+
 	event := new(linebot.Event)
 	if err := event.UnmarshalJSON(body); err != nil {
 		return err

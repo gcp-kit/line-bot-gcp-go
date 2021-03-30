@@ -48,6 +48,14 @@ func (cf *cloudFunctionsProps) SetGCPine(pine *GCPine) {
 func (cf *cloudFunctionsProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter) error {
 	defer r.Body.Close()
 
+	// guard
+	if cf.secret == "" {
+		return fmt.Errorf("secret is required")
+	}
+	if cf.parentTopic == nil {
+		return fmt.Errorf("parent topic is required")
+	}
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
@@ -73,6 +81,11 @@ func (cf *cloudFunctionsProps) ReceiveWebHook(r *http.Request, w http.ResponseWr
 // ParentEvent - receive parent events on Cloud Functions.
 // CloudFunctions(Trigger: Pub/Sub)
 func (cf *cloudFunctionsProps) ParentEvent(ctx context.Context, message *pubsub.Message) error {
+	// guard
+	if cf.childTopic == nil {
+		return fmt.Errorf("child topic is required")
+	}
+
 	events, err := ParseEvents(message.Data)
 	if err != nil {
 		return fmt.Errorf("could not parse the event: %w", err)
@@ -103,6 +116,11 @@ func (cf *cloudFunctionsProps) ParentEvent(ctx context.Context, message *pubsub.
 // ChildEvent - receive child event on Cloud Functions.
 // CloudFunctions(Trigger: Pub/Sub)
 func (cf *cloudFunctionsProps) ChildEvent(ctx context.Context, message *pubsub.Message) error {
+	// guard
+	if cf.pine == nil {
+		return fmt.Errorf("GCPine is required")
+	}
+
 	event := new(linebot.Event)
 	if err := event.UnmarshalJSON(message.Data); err != nil {
 		return fmt.Errorf("faild to json unmarshal: %w", err)
