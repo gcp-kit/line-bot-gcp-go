@@ -41,13 +41,12 @@ func ReceiveWebHook(r *http.Request, w http.ResponseWriter, secret string, topic
 // ParentEvent - receive parent events on Cloud Functions.
 // CloudFunctions(Trigger: Pub/Sub)
 func ParentEvent(ctx context.Context, message *pubsub.Message, topic *pubsub.Topic) error {
-	var wg sync.WaitGroup
-
 	events, err := ParseEvents(message.Data)
 	if err != nil {
 		return fmt.Errorf("could not parse the event: %w", err)
 	}
 
+	var wg sync.WaitGroup
 	for _, event := range events {
 		wg.Add(1)
 		go func(ev *linebot.Event) {
@@ -85,6 +84,7 @@ func ChildEvent(ctx context.Context, message *pubsub.Message, pine *GCPine) erro
 		}
 		return fmt.Errorf("failed to function execution: %w", err)
 	}
+
 	return nil
 }
 

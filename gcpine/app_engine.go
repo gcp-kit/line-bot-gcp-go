@@ -95,13 +95,12 @@ func (ae *AppEngineProps) ReceiveWebHook(w http.ResponseWriter, r *http.Request)
 
 // ParentEvent - receive parent events on Cloud Tasks.
 func (ae *AppEngineProps) ParentEvent(ctx context.Context, body []byte) error {
-	var wg sync.WaitGroup
-
 	events, err := ParseEvents(body)
 	if err != nil {
 		return fmt.Errorf("could not parse the event: %w", err)
 	}
 
+	var wg sync.WaitGroup
 	for _, event := range events {
 		wg.Add(1)
 		go func(ev *linebot.Event) {
@@ -138,5 +137,6 @@ func (ae *AppEngineProps) ChildEvent(ctx context.Context, pine *GCPine, body []b
 		}
 		return fmt.Errorf("failed to function execution: %w", err)
 	}
+
 	return nil
 }
