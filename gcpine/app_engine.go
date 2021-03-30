@@ -18,15 +18,16 @@ type AppEngineProps interface {
 	SetTasksClient(client *cloudtasks.Client)
 	SetSecret(secret string)
 	SetService(service string)
-	ReceiveWebHook(w http.ResponseWriter, r *http.Request)
 	ParentEvent(ctx context.Context, body []byte) error
-	ChildEvent(ctx context.Context, pine *GCPine, body []byte) error
+	ChildEvent(ctx context.Context, body []byte) error
+	Props
 }
 
 type appEngineProps struct {
 	queuePath   string
 	relativeURI string
 	service     string
+	pine        *GCPine
 	client      *cloudtasks.Client
 	secret      string
 }
@@ -54,6 +55,11 @@ func (ae *appEngineProps) SetSecret(secret string) {
 // SetService - setter
 func (ae *appEngineProps) SetService(service string) {
 	ae.secret = service
+}
+
+// SetGCPine - setter
+func (ae *appEngineProps) SetGCPine(pine *GCPine) {
+	ae.pine = pine
 }
 
 func (ae *appEngineProps) createTask(ctx context.Context, data []byte) error {
@@ -86,27 +92,28 @@ func (ae *appEngineProps) createTask(ctx context.Context, data []byte) error {
 }
 
 // ReceiveWebHook - receive webhooks of LINE on App Engine.
-func (ae *appEngineProps) ReceiveWebHook(w http.ResponseWriter, r *http.Request) {
+func (ae *appEngineProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter) error {
 	defer r.Body.Close()
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("failed to read all of the body: %w", err)
 	}
 
 	if !ValidateSignature(ae.secret, r.Header.Get("X-Line-Signature"), body) {
 		http.Error(w, "NG", http.StatusBadRequest)
-		return
+		return fmt.Errorf("failed to signature verification")
 	}
 
 	if err = ae.createTask(r.Context(), body); err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("failed to creating a task: %w", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintln(w, http.StatusText(http.StatusOK))
+	return nil
 }
 
 // ParentEvent - receive parent events on Cloud Tasks.
@@ -139,15 +146,15 @@ func (ae *appEngineProps) ParentEvent(ctx context.Context, body []byte) error {
 }
 
 // ChildEvent - receive child event on Cloud Tasks.
-func (ae *appEngineProps) ChildEvent(ctx context.Context, pine *GCPine, body []byte) error {
+func (ae *appEngineProps) ChildEvent(ctx context.Context, body []byte) error {
 	event := new(linebot.Event)
 	if err := event.UnmarshalJSON(body); err != nil {
 		return err
 	}
 
-	if err := pine.Execute(ctx, event); err != nil {
-		if len(pine.ErrMessages) > 0 {
-			if er := pine.SendReplyMessage(event.ReplyToken, pine.ErrMessages); er != nil {
+	if err := ae.pine.Execute(ctx, event); err != nil {
+		if len(ae.pine.ErrMessages) > 0 {
+			if er := ae.pine.SendReplyMessage(event.ReplyToken, ae.pine.ErrMessages); er != nil {
 				return fmt.Errorf("failed to send error messages: %w", err)
 			}
 		}
