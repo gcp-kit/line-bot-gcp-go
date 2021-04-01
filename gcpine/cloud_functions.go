@@ -11,10 +11,50 @@ import (
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
+// CloudFunctionsProps - props for Cloud Functions.
+type CloudFunctionsProps interface {
+	ParentEvent(ctx context.Context, message *pubsub.Message) error
+	ChildEvent(ctx context.Context, message *pubsub.Message) error
+	Props
+}
+
+type cloudFunctionsProps struct {
+	pine        *GCPine
+	parentTopic *pubsub.Topic
+	childTopic  *pubsub.Topic
+	secret      string
+}
+
+// NewCloudFunctionsProps - constructor
+func NewCloudFunctionsProps(parent, child *pubsub.Topic) CloudFunctionsProps {
+	return &cloudFunctionsProps{
+		parentTopic: parent,
+		childTopic:  child,
+	}
+}
+
+// SetSecret - setter
+func (cf *cloudFunctionsProps) SetSecret(secret string) {
+	cf.secret = secret
+}
+
+// SetGCPine - setter
+func (cf *cloudFunctionsProps) SetGCPine(pine *GCPine) {
+	cf.pine = pine
+}
+
 // ReceiveWebHook - receive webhooks of LINE on Cloud Functions.
 // CloudFunctions(Trigger: HTTP)
-func ReceiveWebHook(r *http.Request, w http.ResponseWriter, secret string, topic *pubsub.Topic) error {
+func (cf *cloudFunctionsProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter) error {
 	defer r.Body.Close()
+
+	// guard
+	if cf.secret == "" {
+		return fmt.Errorf("secret is required")
+	}
+	if cf.parentTopic == nil {
+		return fmt.Errorf("parent topic is required")
+	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -22,13 +62,13 @@ func ReceiveWebHook(r *http.Request, w http.ResponseWriter, secret string, topic
 		return fmt.Errorf("failed to read all of the body: %w", err)
 	}
 
-	if !ValidateSignature(secret, r.Header.Get("X-Line-Signature"), body) {
+	if !ValidateSignature(cf.secret, r.Header.Get("X-Line-Signature"), body) {
 		http.Error(w, "NG", http.StatusBadRequest)
 		return fmt.Errorf("failed to signature verification")
 	}
 
 	ctx := r.Context()
-	if err = publishMessage(ctx, topic, body); err != nil {
+	if err = publishMessage(ctx, cf.parentTopic, body); err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
 		return fmt.Errorf("could not publish message: %w", err)
 	}
@@ -40,14 +80,18 @@ func ReceiveWebHook(r *http.Request, w http.ResponseWriter, secret string, topic
 
 // ParentEvent - receive parent events on Cloud Functions.
 // CloudFunctions(Trigger: Pub/Sub)
-func ParentEvent(ctx context.Context, message *pubsub.Message, topic *pubsub.Topic) error {
-	var wg sync.WaitGroup
+func (cf *cloudFunctionsProps) ParentEvent(ctx context.Context, message *pubsub.Message) error {
+	// guard
+	if cf.childTopic == nil {
+		return fmt.Errorf("child topic is required")
+	}
 
 	events, err := ParseEvents(message.Data)
 	if err != nil {
 		return fmt.Errorf("could not parse the event: %w", err)
 	}
 
+	var wg sync.WaitGroup
 	for _, event := range events {
 		wg.Add(1)
 		go func(ev *linebot.Event) {
@@ -58,7 +102,7 @@ func ParentEvent(ctx context.Context, message *pubsub.Message, topic *pubsub.Top
 				return
 			}
 
-			if err = publishMessage(ctx, topic, data); err != nil {
+			if err = publishMessage(ctx, cf.childTopic, data); err != nil {
 				return
 			}
 		}(event)
@@ -71,20 +115,26 @@ func ParentEvent(ctx context.Context, message *pubsub.Message, topic *pubsub.Top
 
 // ChildEvent - receive child event on Cloud Functions.
 // CloudFunctions(Trigger: Pub/Sub)
-func ChildEvent(ctx context.Context, message *pubsub.Message, pine *GCPine) error {
+func (cf *cloudFunctionsProps) ChildEvent(ctx context.Context, message *pubsub.Message) error {
+	// guard
+	if cf.pine == nil {
+		return fmt.Errorf("GCPine is required")
+	}
+
 	event := new(linebot.Event)
 	if err := event.UnmarshalJSON(message.Data); err != nil {
 		return fmt.Errorf("faild to json unmarshal: %w", err)
 	}
 
-	if err := pine.Execute(ctx, event); err != nil {
-		if len(pine.ErrMessages) > 0 {
-			if err = pine.SendReplyMessage(event.ReplyToken, pine.ErrMessages); err != nil {
+	if err := cf.pine.Execute(ctx, event); err != nil {
+		if len(cf.pine.ErrMessages) > 0 {
+			if err = cf.pine.SendReplyMessage(event.ReplyToken, cf.pine.ErrMessages); err != nil {
 				return fmt.Errorf("failed to send error messages: %w", err)
 			}
 		}
 		return fmt.Errorf("failed to function execution: %w", err)
 	}
+
 	return nil
 }
 
