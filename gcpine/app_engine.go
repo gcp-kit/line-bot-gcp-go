@@ -15,7 +15,6 @@ import (
 
 // AppEngineProps - props for App Engine.
 type AppEngineProps interface {
-	SetTasksClient(client *cloudtasks.Client)
 	SetSecret(secret string)
 	SetService(service string)
 	ParentEvent(ctx context.Context, body []byte) error
@@ -33,18 +32,14 @@ type appEngineProps struct {
 }
 
 // NewAppEngineProps - constructor
-func NewAppEngineProps(queuePath, relativeURI string) AppEngineProps {
+func NewAppEngineProps(client *cloudtasks.Client, queuePath, relativeURI string) AppEngineProps {
 	gcpen.Reload()
 	return &appEngineProps{
+		client:      client,
 		queuePath:   queuePath,
 		relativeURI: relativeURI,
 		service:     gcpen.ServiceName,
 	}
-}
-
-// SetTasksClient - setter
-func (ae *appEngineProps) SetTasksClient(client *cloudtasks.Client) {
-	ae.client = client
 }
 
 // SetSecret - setter
