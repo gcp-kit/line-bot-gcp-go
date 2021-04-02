@@ -9,6 +9,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/line/line-bot-sdk-go/linebot"
+	"golang.org/x/xerrors"
 )
 
 // CloudFunctionsProps - props for Cloud Functions.
@@ -50,27 +51,27 @@ func (cf *cloudFunctionsProps) ReceiveWebHook(r *http.Request, w http.ResponseWr
 
 	// guard
 	if cf.secret == "" {
-		return fmt.Errorf("secret is required")
+		return xerrors.Errorf("secret is required")
 	}
 	if cf.parentTopic == nil {
-		return fmt.Errorf("parent topic is required")
+		return xerrors.Errorf("parent topic is required")
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
-		return fmt.Errorf("failed to read all of the body: %w", err)
+		return xerrors.Errorf("failed to read all of the body: %w", err)
 	}
 
 	if !ValidateSignature(cf.secret, r.Header.Get("X-Line-Signature"), body) {
 		http.Error(w, "NG", http.StatusBadRequest)
-		return fmt.Errorf("failed to signature verification")
+		return xerrors.Errorf("failed to signature verification")
 	}
 
 	ctx := r.Context()
 	if err = publishMessage(ctx, cf.parentTopic, body); err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
-		return fmt.Errorf("could not publish message: %w", err)
+		return xerrors.Errorf("could not publish message: %w", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -83,12 +84,12 @@ func (cf *cloudFunctionsProps) ReceiveWebHook(r *http.Request, w http.ResponseWr
 func (cf *cloudFunctionsProps) ParentEvent(ctx context.Context, message *pubsub.Message) error {
 	// guard
 	if cf.childTopic == nil {
-		return fmt.Errorf("child topic is required")
+		return xerrors.Errorf("child topic is required")
 	}
 
 	events, err := ParseEvents(message.Data)
 	if err != nil {
-		return fmt.Errorf("could not parse the event: %w", err)
+		return xerrors.Errorf("could not parse the event: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -118,21 +119,21 @@ func (cf *cloudFunctionsProps) ParentEvent(ctx context.Context, message *pubsub.
 func (cf *cloudFunctionsProps) ChildEvent(ctx context.Context, message *pubsub.Message) error {
 	// guard
 	if cf.pine == nil {
-		return fmt.Errorf("GCPine is required")
+		return xerrors.Errorf("GCPine is required")
 	}
 
 	event := new(linebot.Event)
 	if err := event.UnmarshalJSON(message.Data); err != nil {
-		return fmt.Errorf("faild to json unmarshal: %w", err)
+		return xerrors.Errorf("faild to json unmarshal: %w", err)
 	}
 
 	if err := cf.pine.Execute(ctx, event); err != nil {
 		if len(cf.pine.ErrMessages) > 0 {
 			if err = cf.pine.SendReplyMessage(event.ReplyToken, cf.pine.ErrMessages); err != nil {
-				return fmt.Errorf("failed to send error messages: %w", err)
+				return xerrors.Errorf("failed to send error messages: %w", err)
 			}
 		}
-		return fmt.Errorf("failed to function execution: %w", err)
+		return xerrors.Errorf("failed to function execution: %w", err)
 	}
 
 	return nil
@@ -141,7 +142,7 @@ func (cf *cloudFunctionsProps) ChildEvent(ctx context.Context, message *pubsub.M
 func publishMessage(ctx context.Context, topic *pubsub.Topic, data []byte) error {
 	msg := &pubsub.Message{Data: data}
 	if _, err := topic.Publish(ctx, msg).Get(ctx); err != nil {
-		return fmt.Errorf("failed to publish: %w", err)
+		return xerrors.Errorf("failed to publish: %w", err)
 	}
 
 	return nil

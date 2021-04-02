@@ -10,6 +10,7 @@ import (
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/gcp-kit/gcpen"
 	"github.com/line/line-bot-sdk-go/linebot"
+	"golang.org/x/xerrors"
 	"google.golang.org/genproto/googleapis/cloud/tasks/v2"
 )
 
@@ -80,7 +81,7 @@ func (ae *appEngineProps) createTask(ctx context.Context, data []byte) error {
 	}
 
 	if _, err := ae.client.CreateTask(ctx, req); err != nil {
-		return fmt.Errorf("failed to create tasks: %w", err)
+		return xerrors.Errorf("failed to create tasks: %w", err)
 	}
 
 	return nil
@@ -92,26 +93,26 @@ func (ae *appEngineProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter)
 
 	// guard
 	if ae.secret == "" {
-		return fmt.Errorf("secret is required")
+		return xerrors.Errorf("secret is required")
 	}
 	if ae.client == nil {
-		return fmt.Errorf("cloud tasks client is required")
+		return xerrors.Errorf("cloud tasks client is required")
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
-		return fmt.Errorf("failed to read all of the body: %w", err)
+		return xerrors.Errorf("failed to read all of the body: %w", err)
 	}
 
 	if !ValidateSignature(ae.secret, r.Header.Get("X-Line-Signature"), body) {
 		http.Error(w, "NG", http.StatusBadRequest)
-		return fmt.Errorf("failed to signature verification")
+		return xerrors.Errorf("failed to signature verification")
 	}
 
 	if err = ae.createTask(r.Context(), body); err != nil {
 		http.Error(w, "NG", http.StatusInternalServerError)
-		return fmt.Errorf("failed to creating a task: %w", err)
+		return xerrors.Errorf("failed to creating a task: %w", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -123,12 +124,12 @@ func (ae *appEngineProps) ReceiveWebHook(r *http.Request, w http.ResponseWriter)
 func (ae *appEngineProps) ParentEvent(ctx context.Context, body []byte) error {
 	// guard
 	if ae.client == nil {
-		return fmt.Errorf("cloud tasks client is required")
+		return xerrors.Errorf("cloud tasks client is required")
 	}
 
 	events, err := ParseEvents(body)
 	if err != nil {
-		return fmt.Errorf("could not parse the event: %w", err)
+		return xerrors.Errorf("could not parse the event: %w", err)
 	}
 
 	var wg sync.WaitGroup
@@ -157,7 +158,7 @@ func (ae *appEngineProps) ParentEvent(ctx context.Context, body []byte) error {
 func (ae *appEngineProps) ChildEvent(ctx context.Context, body []byte) error {
 	// guard
 	if ae.pine == nil {
-		return fmt.Errorf("GCPine is required")
+		return xerrors.Errorf("GCPine is required")
 	}
 
 	event := new(linebot.Event)
@@ -168,10 +169,10 @@ func (ae *appEngineProps) ChildEvent(ctx context.Context, body []byte) error {
 	if err := ae.pine.Execute(ctx, event); err != nil {
 		if len(ae.pine.ErrMessages) > 0 {
 			if er := ae.pine.SendReplyMessage(event.ReplyToken, ae.pine.ErrMessages); er != nil {
-				return fmt.Errorf("failed to send error messages: %w", err)
+				return xerrors.Errorf("failed to send error messages: %w", err)
 			}
 		}
-		return fmt.Errorf("failed to function execution: %w", err)
+		return xerrors.Errorf("failed to function execution: %w", err)
 	}
 
 	return nil
