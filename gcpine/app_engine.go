@@ -16,7 +16,6 @@ import (
 
 // AppEngineProps - props for App Engine.
 type AppEngineProps interface {
-	SetSecret(secret string)
 	SetService(service string)
 	ParentEvent(ctx context.Context, body []byte) error
 	ChildEvent(ctx context.Context, body []byte) error
