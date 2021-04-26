@@ -2,17 +2,17 @@ package gcpine
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 
 	"github.com/line/line-bot-sdk-go/linebot"
+	"golang.org/x/xerrors"
 )
 
 // Execute - separate execute for each event
 func (g *GCPine) Execute(ctx context.Context, event *linebot.Event) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
-			err = fmt.Errorf("panic: %+v", rec)
+			err = xerrors.Errorf("panic: %+v", rec)
 		}
 	}()
 
@@ -37,12 +37,12 @@ func (g *GCPine) Execute(ctx context.Context, event *linebot.Event) (err error) 
 
 	fn, ok := g.Function[eventType]
 	if !ok {
-		return fmt.Errorf("event type=%s: %w", eventType, ErrNoSetFunction)
+		return xerrors.Errorf("event type=%s: %w", eventType, ErrNoSetFunction)
 	}
 
 	stack, err := fn(ctx, g, event)
 	if err != nil {
-		return fmt.Errorf("error in event handler method: %w", err)
+		return xerrors.Errorf("error in event handler method: %w", err)
 	}
 
 	// NOTE: will not reply
@@ -55,7 +55,7 @@ func (g *GCPine) Execute(ctx context.Context, event *linebot.Event) (err error) 
 	}
 
 	if err = g.SendReplyMessage(event.ReplyToken, stack); err != nil {
-		return fmt.Errorf("could not send message: %w", err)
+		return xerrors.Errorf("could not send message: %w", err)
 	}
 
 	return nil
