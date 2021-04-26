@@ -11,14 +11,14 @@ type (
 	// GCPine - Toolkit of the LINE Bot to work for Google Cloud Platform.
 	GCPine struct {
 		ErrMessages []linebot.SendingMessage
-		Function    map[EventType]GCPineFunction
-		LiffFunc    map[string]GCPineLiffFunc
+		Function    map[EventType]PineFunction
+		LiffFunc    map[string]PineLiffFunc
 		*linebot.Client
 	}
 
-	// GCPineFunction - Event function for reply
-	GCPineFunction func(ctx context.Context, pine *GCPine, event *linebot.Event) ([]linebot.SendingMessage, error)
+	// PineFunction - Event function for reply
+	PineFunction func(ctx context.Context, pine *GCPine, event *linebot.Event) ([]linebot.SendingMessage, error)
 
-	// GCPineLiffFunc - Functions for LIFF(TODO function)
-	GCPineLiffFunc func(r *http.Request, w http.ResponseWriter)
+	// PineLiffFunc - Functions for LIFF(TODO function)
+	PineLiffFunc func(r *http.Request, w http.ResponseWriter)
 )
