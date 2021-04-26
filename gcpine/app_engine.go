@@ -9,7 +9,7 @@ import (
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/gcp-kit/gcpen"
-	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/line/line-bot-sdk-go/v7/linebot"
 	"golang.org/x/xerrors"
 	"google.golang.org/genproto/googleapis/cloud/tasks/v2"
 )

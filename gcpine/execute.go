@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/line/line-bot-sdk-go/v7/linebot"
 	"golang.org/x/xerrors"
 )
 
