@@ -2,6 +2,7 @@ package gcpine
 
 import (
 	"context"
+	"log"
 	"reflect"
 
 	"github.com/line/line-bot-sdk-go/v7/linebot"
@@ -37,7 +38,8 @@ func (g *GCPine) Execute(ctx context.Context, event *linebot.Event) (err error) 
 
 	fn, ok := g.Function[eventType]
 	if !ok {
-		return xerrors.Errorf("event type=%s: %w", eventType, ErrNoSetFunction)
+		log.Printf("event type=%s: %+v", eventType, ErrNoSetFunction)
+		return nil
 	}
 
 	stack, err := fn(ctx, g, event)
