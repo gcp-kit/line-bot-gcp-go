@@ -29,4 +29,6 @@ const (
 	EventTypeBeaconEvent       EventType = "beacon"
 	EventTypeAccountLinkEvent  EventType = "accountLink"
 	EventTypeThingsEvent       EventType = "things"
+	EventTypeUnsend            EventType = "unsend"
+	EventTypeVideoPlayComplete EventType = "videoPlayComplete"
 )
